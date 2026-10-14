@@ -788,3 +788,37 @@ body.dragging .drop-overlay { display: grid; }
   text-align: center;
   cursor: help;
 }
+
+/* Master-detail selection in the groups / objects lists */
+
+.table-list tbody tr.row-select { cursor: pointer; }
+.table-list tbody tr.row-select:hover { background: var(--surface-2); }
+.table-list tbody tr.row-select:focus-visible { outline: 2px solid var(--primary); outline-offset: -2px; }
+.table-list tbody tr.row-select.selected { background: var(--primary-soft); box-shadow: inset 3px 0 0 var(--primary); }
+
+.link-note-row { margin-bottom: 10px; }
+.link-note-row[hidden] { display: none; }
+.link-note {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 2px 4px 2px 10px;
+  border-radius: 999px;
+  background: var(--primary-soft);
+  color: var(--primary);
+  font-size: 12.5px;
+  font-weight: 500;
+}
+.link-note[hidden] { display: none; }
+.link-note-clear {
+  border: 0;
+  border-radius: 50%;
+  width: 20px;
+  height: 20px;
+  background: transparent;
+  color: inherit;
+  font-size: 15px;
+  line-height: 1;
+  cursor: pointer;
+}
+.link-note-clear:hover { background: rgba(127, 127, 127, .2); }
