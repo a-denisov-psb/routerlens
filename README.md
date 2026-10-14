@@ -43,7 +43,7 @@ Securepoint UTM reports have their own views (navigation shows only the loaded r
 | Dashboard | ✅ | System (model, version, licensee, licence, serial number, name server, NTP), firewall figures, users with their groups, routes, one card per interface (addresses, zones, MAC, MTU, link, VLAN, dynamic DNS) |
 | Users | ✅ | User groups with permission and members, full user table |
 | Firewall → Rules | ✅ | Packet filter rules in their rule groups (collapsible, group active state, auto-generated badge), per-column filters, global search over everything a rule resolves to; the detail panel expands source, destination and service down to the members of their object/service groups (address, zone, protocol, ports) and shows NAT object, logging and comment |
-| Firewall → Network objects | ✅ | Network groups with their members next to all network objects (type, address, zone, containing groups, number of rules using them); GeoIP country objects are hidden until ticked |
+| Firewall → Network objects | ✅ | Network groups with their members next to all network objects (type, address, zone, containing groups, number of rules using them); GeoIP country objects are hidden until ticked. Master-detail: selecting a group lists only its members, selecting an object lists only the groups containing it (deselect by clicking the row again, the × chip, Escape or the empty background); search fields keep working on top |
 | Firewall → Services | ✅ | Service groups with their members next to all services (protocol, ports, ICMP types, source ports, containing groups, rules using them) |
 
 Only configuration state is rendered. Runtime data (serial number, firmware, uptime,
