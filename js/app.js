@@ -14,8 +14,9 @@
   RouterLens.views = {
     /**
      * Registers a navigation entry. `device` selects the router type the entry belongs to
-     * ('insys' by default, 'securepoint'); `render` receives that device's parsed data.
-     * @param {{id: string, label: string, icon: string, device?: string, render: function(*): Node}} view
+     * ('insys' by default, 'securepoint'); `render` receives that device's parsed data and a
+     * context `{ sub }` with the optional second hash segment (#view/sub).
+     * @param {{id: string, label: string, icon: string, device?: string, render: function(*, {sub: ?string}): Node}} view
      */
     register: function (view) {
       views.push(Object.assign({ device: 'insys' }, view));
@@ -203,9 +204,15 @@
       themeToggle.setAttribute('aria-label', label);
     }
 
+    /** The hash is "#<view>" or "#<view>/<sub>"; the sub part lets a view address its own tabs. */
     function viewFromHash() {
-      const id = root.location.hash.slice(1);
+      const id = root.location.hash.slice(1).split('/')[0];
       return deviceViews().some(function (v) { return v.id === id; }) ? id : null;
+    }
+
+    function subFromHash() {
+      const parts = root.location.hash.slice(1).split('/');
+      return parts.length > 1 && parts[1] ? parts[1] : null;
     }
 
     function loadFile(file) {
@@ -261,7 +268,7 @@
           : null,
       ].filter(Boolean));
 
-      main.appendChild(view.render(state.config));
+      main.appendChild(view.render(state.config, { sub: subFromHash() }));
       document.title = (hostname ? hostname + ' · ' : '') + view.label + ' · RouterLens';
     }
 

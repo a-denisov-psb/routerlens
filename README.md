@@ -42,6 +42,7 @@ Securepoint UTM reports have their own views (navigation shows only the loaded r
 |---|---|---|
 | Dashboard | ✅ | System (model, version, licensee, licence, serial number, name server, NTP), firewall figures, users with their groups, routes, one card per interface (addresses, zones, MAC, MTU, link, VLAN, dynamic DNS) |
 | Users | ✅ | User groups with permission and members, full user table |
+| Firewall → Rules | ✅ | Packet filter rules in their rule groups (collapsible, group active state, auto-generated badge), per-column filters, global search over everything a rule resolves to; the detail panel expands source, destination and service down to the members of their object/service groups (address, zone, protocol, ports) and shows NAT object, logging and comment |
 
 Only configuration state is rendered. Runtime data (serial number, firmware, uptime,
 online state, DHCP-assigned addresses) is not part of the export and is therefore not shown.
