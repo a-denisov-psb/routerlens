@@ -2,8 +2,9 @@
 
 **➡️ [Open the live app](https://a-denisov-psb.github.io/routerlens/)**
 
-Renders the configuration export of an INSYS icom OS router (flat `key=value` file) as a
-readable, icom-OS-like web view. It is a **documentation tool** for maintenance work –
+Renders router configuration exports as a readable, GUI-like web view. Two router types are
+supported: **INSYS icom OS** (flat `key=value` export, `.txt`) and **Securepoint UTM** (the PDF
+report, `.pdf`). The type is chosen by the file extension. It is a **documentation tool** for maintenance work –
 not a management portal: there is no connection to the router and no backend.
 
 ## Privacy
@@ -21,9 +22,11 @@ No build step, no dependencies.
    python3 -m http.server 8000
    ```
    and open <http://localhost:8000>.
-2. Drop the exported config file onto the page or use **Open file…**.
+2. Drop the exported config file (INSYS `.txt`) or the Securepoint report (`.pdf`) onto the
+   page or use **Open file…**.
 
-A sample export is available in `reference/example_config.txt`.
+Sample files: `reference/example_config.txt` (INSYS) and
+`reference/securepoint_example_report.pdf` (Securepoint, anonymized).
 
 ## Scope
 
@@ -44,10 +47,12 @@ index.html            App shell (icon rail, top bar), script includes
 css/app.css           Styles (light + dark via prefers-color-scheme)
 js/parser.js          Config parser (browser global + CommonJS for tests)
 js/ui.js              DOM helpers (cards, key/value lists, pills, chips)
-js/app.js             View registry, navigation, file loading
+js/app.js             View registry, navigation, file loading, router type detection
+js/securepoint/       Securepoint report: PDF text extraction + table parser
+js/vendor/pdfjs/      pdf.js 3.11.174 (Apache-2.0), loaded only when a PDF is opened
 js/views/*.js         One file per navigation entry
-tests/                Parser tests (node:test)
-reference/            Example config + icom OS REST API spec (OpenAPI 9.5)
+tests/                Parser tests (node:test), fixtures
+reference/            Example INSYS config + REST API spec (OpenAPI 9.5), anonymized Securepoint report
 ```
 
 ### Parser
@@ -67,6 +72,24 @@ continuation lines may contain `=` (base64 padding, bird config).
 Field meanings follow the REST API schemas, e.g. `interfaces.ethernet1.*` ↔
 `configuration.interfaces.ethernet1` in `reference/icomOS_REST_API_9.5.json`.
 
+### Securepoint report parser
+
+The Securepoint report has no machine-readable export, only a PDF with tables. Reading it
+is done in two steps (both local, no network):
+
+1. `RouterLens.securepointPdf.extractPages(pdfjsLib, buffer)` extracts the text with pdf.js and
+   returns pages → lines → cells `{ x, text }`. The x position is kept because empty table
+   cells do not exist in plain text.
+2. `RouterLens.securepoint.parseReport(pages)` reads every table of the table of contents,
+   assigns the cells to the columns of the table header by their x position and returns the
+   report model: `system`, `users`, `interfaces` (with addresses), `routes`, `zones`, `nodes`,
+   `nodeGroups`, `services`, `serviceGroups`, `ruleGroups` (each with its `rules`), `globals`
+   and `applications`. `resolveEndpoint(name)` / `resolveService(name)` expand a rule's
+   source/destination/service name to the node or service (group) with all members.
+
+`RouterLens.securepoint.detect(pages)` verifies that a PDF really is a Securepoint UTM report
+(title on page 1, table of contents with "System info").
+
 ### Adding a view
 
 Create `js/views/<name>.js` and include it in `index.html` after `js/app.js`:
@@ -76,6 +99,7 @@ RouterLens.views.register({
   id: 'routing',              // URL hash (#routing)
   label: 'Routing',           // tooltip / page title
   icon: '<svg …>…</svg>',     // 24×24 stroke icon
+  device: 'insys',            // router type: 'insys' (default) or 'securepoint'
   render: function (config) { return RouterLens.ui.h('div', null, '…'); },
 });
 ```
