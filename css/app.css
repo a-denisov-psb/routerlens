@@ -759,3 +759,32 @@ body.dragging .drop-overlay { display: grid; }
 .table-resolved { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; border-collapse: separate; border-spacing: 0; overflow: hidden; }
 .table-resolved th, .table-resolved td { padding: 5px 12px; }
 .table-wrap-flush { margin: 0; }
+
+/* Securepoint: groups next to objects / services */
+
+.object-grid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.5fr); gap: 16px; align-items: start; }
+
+@media (max-width: 1200px) {
+  .object-grid { grid-template-columns: minmax(0, 1fr); }
+}
+
+.table-list th, .table-list td { padding-left: 12px; padding-right: 12px; }
+.table-list td { vertical-align: top; }
+.table-list td:first-child, .table-list th:first-child { padding-left: 18px; }
+
+.chip-more { display: contents; }
+.check { display: inline-flex; align-items: center; gap: 4px; color: var(--text-2); font-size: 12.5px; white-space: nowrap; }
+.rule-toolbar { flex-wrap: wrap; }
+
+.usage {
+  display: inline-block;
+  min-width: 22px;
+  padding: 0 7px;
+  border-radius: 999px;
+  background: var(--primary-soft);
+  color: var(--primary);
+  font-size: 12px;
+  font-weight: 600;
+  text-align: center;
+  cursor: help;
+}

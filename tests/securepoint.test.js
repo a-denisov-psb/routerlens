@@ -149,3 +149,17 @@ test('computes the network address of a CIDR', () => {
   assert.equal(networkOf('10.230.200.90/28'), '10.230.200.80/28');
   assert.equal(networkOf('not-an-address'), 'not-an-address');
 });
+
+test('finds the rules that use an object or service, directly or through a group', () => {
+  const ids = (rules) => rules.map((r) => r.id);
+  // DEMO-NAS01 is only used through the groups internal-network-update (rule 9) and -dienste (rule 10).
+  assert.deepEqual(ids(report.rulesUsingObject('DEMO-NAS01')), [9, 10]);
+  assert.deepEqual(report.groupsOfObject('DEMO-NAS01').map((g) => g.name), ['internal-network-update', 'internal-network-dienste']);
+  assert.deepEqual(ids(report.rulesUsingObject('internal-network-rdp')), []);
+  assert.deepEqual(ids(report.rulesUsingService('administration')), [15]);
+  assert.deepEqual(ids(report.rulesUsingService('ssh')), [15]);
+  assert.deepEqual(report.groupsOfService('ssh').map((g) => g.name), ['administration']);
+  assert.deepEqual(ids(report.rulesUsingService('RealVNC-TCP-443')), [42]);
+  // NAT objects count as usage too.
+  assert.ok(ids(report.rulesUsingObject('external-interface')).includes(41));
+});
