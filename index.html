@@ -49,16 +49,23 @@
     <main id="main" class="main"></main>
   </div>
 
-  <div class="drop-overlay" aria-hidden="true"><span>Drop config file to open</span></div>
-  <input id="file-input" type="file" accept=".txt,.cfg,.conf,text/plain" hidden>
+  <div class="drop-overlay" aria-hidden="true"><span>Drop config file or report to open</span></div>
+  <input id="file-input" type="file" accept=".txt,.cfg,.conf,.pdf,text/plain,application/pdf" hidden>
 
   <script src="js/parser.js"></script>
   <script src="js/ui.js"></script>
+  <script src="js/securepoint/pdf-extract.js"></script>
+  <script src="js/securepoint/parser.js"></script>
   <script src="js/app.js"></script>
+  <script src="js/securepoint/ui.js"></script>
   <!-- Views: each script registers one navigation entry, in this order. -->
   <script src="js/views/dashboard.js"></script>
   <script src="js/views/firewall.js"></script>
   <script src="js/views/routing.js"></script>
+  <script src="js/views/securepoint-dashboard.js"></script>
+  <script src="js/views/securepoint-users.js"></script>
+  <script src="js/views/securepoint-firewall.js"></script>
+  <script src="js/views/securepoint-objects.js"></script>
   <script>RouterLens.start();</script>
 </body>
 </html>

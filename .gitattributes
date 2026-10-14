@@ -1,0 +1,3 @@
+# Keep PDFs and vendored libraries byte-exact (no CRLF conversion)
+*.pdf binary
+js/vendor/** -text

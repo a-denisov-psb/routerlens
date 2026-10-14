@@ -1,7 +1,7 @@
 {
   "name": "routerlens",
   "private": true,
-  "description": "Renders INSYS icom OS config exports as readable documentation, fully client-side.",
+  "description": "Renders INSYS icom OS config exports and Securepoint UTM reports as readable documentation, fully client-side.",
   "scripts": {
     "test": "node --test tests/*.test.js"
   }
