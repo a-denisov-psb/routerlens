@@ -36,6 +36,13 @@ Sample files: `reference/example_config.txt` (INSYS) and
 | Firewall | ✅ | IP filter rule table (direction icons, protocol badges, per-row detail panel, per-column filters, full-text search incl. hidden fields), plus Source NAT and Destination NAT rule tables below it with the same interaction |
 | Routing | ✅ | Static routes and OpenVPN server routes (local + pushed to clients), each with a per-row detail panel |
 
+Securepoint UTM reports have their own views (navigation shows only the loaded router type):
+
+| View | Status | Content |
+|---|---|---|
+| Dashboard | ✅ | System (model, version, licensee, licence, serial number, name server, NTP), firewall figures, users with their groups, routes, one card per interface (addresses, zones, MAC, MTU, link, VLAN, dynamic DNS) |
+| Users | ✅ | User groups with permission and members, full user table |
+
 Only configuration state is rendered. Runtime data (serial number, firmware, uptime,
 online state, DHCP-assigned addresses) is not part of the export and is therefore not shown.
 Secrets (passwords, PSKs, keys) are not rendered in the current views.
