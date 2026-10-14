@@ -412,6 +412,40 @@
       return { name: name, type: 'unknown', members: [] };
     };
 
+    /* Where objects and services are used: directly in a rule or through a group of the rule. */
+    const nodeUsage = new Map();
+    const serviceUsage = new Map();
+    function use(map, name, rule) {
+      if (!name) return;
+      if (!map.has(name)) map.set(name, new Set());
+      map.get(name).add(rule);
+    }
+    function useEndpoint(name, rule) {
+      use(nodeUsage, name, rule);
+      if (nodeGroupsByName.has(name)) nodeGroupsByName.get(name).members.forEach(function (m) { use(nodeUsage, m, rule); });
+    }
+    function useService(name, rule) {
+      use(serviceUsage, name, rule);
+      if (serviceGroupsByName.has(name)) serviceGroupsByName.get(name).members.forEach(function (m) { use(serviceUsage, m, rule); });
+    }
+    report.rules.forEach(function (rule) {
+      [rule.source, rule.destination, rule.natNode].forEach(function (n) { useEndpoint(n, rule); });
+      [rule.service, rule.natService].forEach(function (n) { useService(n, rule); });
+    });
+
+    /** Rules that use a network object or node group (directly or via a group), in report order. */
+    report.rulesUsingObject = function (name) { return Array.from(nodeUsage.get(name) || []); };
+    /** Rules that use a service or service group (directly or via a group), in report order. */
+    report.rulesUsingService = function (name) { return Array.from(serviceUsage.get(name) || []); };
+    /** Node groups that contain the given network object. */
+    report.groupsOfObject = function (name) {
+      return report.nodeGroups.filter(function (g) { return g.members.indexOf(name) !== -1; });
+    };
+    /** Service groups that contain the given service. */
+    report.groupsOfService = function (name) {
+      return report.serviceGroups.filter(function (g) { return g.members.indexOf(name) !== -1; });
+    };
+
     report.zoneByName = function (name) { return zonesByName.get(name); };
     report.interfaceByName = function (name) { return interfacesByName.get(name); };
   }
