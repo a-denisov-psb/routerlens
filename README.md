@@ -8,6 +8,7 @@ device types:
 - **INSYS icom OS** routers – flat `key=value` export (`.txt`)
 - **Securepoint UTM** firewalls – the PDF configuration report (`.pdf`)
 - **WAGO managed switches** (852 series) – the CLI export `config.save`
+- **PLANET managed switches** (GS-4210 series) – the CLI export `running-config.cfg`
 
 The device type is recognized from the file content (the extension only narrows the candidates).
 It is a **documentation tool** for maintenance work – not a management portal: there is no
@@ -28,14 +29,15 @@ No build step, no dependencies.
    python3 -m http.server 8000
    ```
    and open <http://localhost:8000>.
-2. Drop the exported config file (INSYS `.txt`, WAGO `config.save`) or the Securepoint report
+2. Drop the exported config file (INSYS `.txt`, WAGO `config.save`, PLANET `running-config.cfg`) or the Securepoint report
    (`.pdf`) onto the page or use **Open file…**.
    The **File type** selector in the top bar defaults to *Auto-detect*. Pick a type to force its
    parser (useful when a file name or extension is ambiguous, e.g. a `.txt` export); switching the
    type re-reads the currently opened file. The choice is remembered in the browser.
 
 Sample files (anonymized): `reference/insys/example_config.txt`,
-`reference/securepoint/example_report.pdf`, `reference/wago-switch/example_config.save`.
+`reference/securepoint/example_report.pdf`, `reference/wago-switch/example_config.save`,
+`reference/planet-switch/example_running-config.cfg`.
 
 ## Scope
 
@@ -66,6 +68,13 @@ Every device type has its own views (navigation shows only the loaded type).
 | Dashboard | ✅ | System (model, management address and gateway, PROFINET / LLDP), MRP ring redundancy (state, ring ports, ring VLAN), VLAN overview, front panel with PVID / tagged VLANs / ring / frame-type hints per port, and every statement the parser does not interpret ("Other settings") |
 | VLANs | ✅ | Membership matrix VLAN × port (untagged, tagged, forbidden, PVID marked) and per-port VLAN settings (PVID, untagged / tagged VLANs, accepted frame types, warning when the PVID is not an untagged VLAN of the port) |
 
+**PLANET managed switch:**
+
+| View | Status | Content |
+|---|---|---|
+| Dashboard | ✅ | System (name, model, firmware, up time at export, management address, gateway, DNS), management access (users without their secrets, SNMP communities as access level + warning for default names, HTTPS redirect, spanning tree / MST region, voice VLAN OUIs), PoE (global mode, limit mode, temperature threshold, enabled ports, priorities), VLAN overview, front panel with VLAN mode / native or access VLAN / tagged VLANs / PoE per port, and every statement the parser does not interpret ("Other settings") |
+| VLANs | ✅ | Membership matrix VLAN × port (untagged, tagged, PVID / native VLAN marked) and per-port settings (mode – switch default marked –, PVID, untagged / tagged VLANs, PoE, warnings for undefined VLANs) |
+
 Only configuration state is rendered. Runtime data (serial number, firmware, uptime,
 online state, DHCP-assigned addresses) is not part of the export and is therefore not shown.
 Secrets (passwords, PSKs, keys) are not rendered in the current views.
@@ -89,7 +98,7 @@ reference/<id>/             Anonymized sample files, specs
 ```
 
 Device modules: `insys` (INSYS icom OS), `securepoint` (Securepoint UTM), `wago-switch`
-(WAGO 852 managed switches).
+(WAGO 852 managed switches), `planet-switch` (PLANET GS-4210 managed switches).
 
 ### INSYS parser
 
@@ -152,6 +161,36 @@ settings). Blocks start with `vlan <id>`, `interface <name>` or `mrp ring-id <id
 `management`, `rings`, `ports` (one entry per port with its effective PVID, untagged and tagged
 VLANs, accepted frames, ring membership) and `warnings`. Statements it does not interpret are kept
 in `other` / `otherGlobals` and shown in the dashboard.
+
+### PLANET switch parser
+
+The PLANET GS-4210 switches export `running-config.cfg`: CLI statements framed by
+`SYSTEM CONFIG FILE ::= BEGIN`, written only where they differ from the factory default. A
+statement at column 0 opens a context; indented lines below it belong to it (`vlan 10` → ` name "…"`,
+`interface gi1` → ` switchport …`). `!` lines are separators, the `! System …: …` header lines carry
+model, firmware version and up time.
+
+| Statement | Meaning |
+|---|---|
+| `system name "…"` | Host name |
+| `ip address A mask M`, `ip default-gateway`, `ip dns …` | Management address |
+| `username "…" secret encrypted …` | Local user (the hash is not kept) |
+| `vlan 10` / ` name "…"` | VLAN ID and name (`vlan 10,20-30` creates several) |
+| `interface gi5` | Port 5 (`fa…` / `te…` for other speeds, `lag…` = link aggregation) |
+| ` switchport mode access` / ` switchport access vlan 20` | Access port, untagged in VLAN 20 (default VLAN 1) |
+| ` switchport trunk native vlan N`, ` switchport trunk allowed vlan add 10-11` | Trunk: native VLAN untagged (default 1), allowed VLANs tagged |
+| ` switchport hybrid pvid N`, ` switchport hybrid allowed vlan add N [tagged|untagged]` | Hybrid port |
+| `poe admin-mode`, `poe limit-mode`, `poe temperature_threshold` | Global PoE settings |
+| `poe port enable 1`, `poe priority critical 1` | PoE per port |
+| `snmp community NAME ro|rw` / `no snmp community NAME` | SNMP community (the last statement wins) |
+| `spanning-tree mst configuration` / ` name …` | MST region |
+
+A port without `switchport mode` is a trunk (switch default) with native VLAN 1. Known models
+(`GS-4210-24PL4C`) add the port media (copper / SFP) and the PoE-capable ports.
+`RouterLens.planetSwitch.parseConfig(text)` returns `model`, `system`, `management`, `users`,
+`snmp`, `poe`, `spanningTree`, `voiceVlan`, `services`, `vlans`, `interfaces`, `ports` (one entry per
+port with its effective mode, PVID, untagged / tagged VLANs and PoE state) and `warnings`.
+Statements it does not interpret are kept in `other` / `otherGlobals` and shown in the dashboard.
 
 ### Adding a device type
 
