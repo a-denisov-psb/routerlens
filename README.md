@@ -30,6 +30,9 @@ No build step, no dependencies.
    and open <http://localhost:8000>.
 2. Drop the exported config file (INSYS `.txt`, WAGO `config.save`) or the Securepoint report
    (`.pdf`) onto the page or use **Open file…**.
+   The **File type** selector in the top bar defaults to *Auto-detect*. Pick a type to force its
+   parser (useful when a file name or extension is ambiguous, e.g. a `.txt` export); switching the
+   type re-reads the currently opened file. The choice is remembered in the browser.
 
 Sample files (anonymized): `reference/insys/example_config.txt`,
 `reference/securepoint/example_report.pdf`, `reference/wago-switch/example_config.save`.
