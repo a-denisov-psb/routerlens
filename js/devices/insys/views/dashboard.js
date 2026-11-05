@@ -578,5 +578,5 @@
     return ui.kvList(rows) || ui.emptyNote('No further settings.');
   }
 
-  RouterLens.views.register({ id: 'dashboard', label: 'Dashboard', icon: ICON, render: render });
+  RouterLens.views.register({ id: 'dashboard', label: 'Dashboard', icon: ICON, device: 'insys', render: render });
 })(window);

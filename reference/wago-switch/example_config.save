@@ -1,0 +1,47 @@
+vlan 1
+name VLAN1
+fixed 1-8,10
+!
+vlan 3
+name Site B
+fixed 4,9
+tagged 4
+!
+interface fastethernet1/0/1
+!
+interface fastethernet1/0/2
+!
+interface fastethernet1/0/3
+!
+interface fastethernet1/0/4
+!
+interface fastethernet1/0/5
+!
+interface fastethernet1/0/6
+!
+interface fastethernet1/0/7
+!
+interface fastethernet1/0/8
+!
+interface gigabitethernet1/0/9
+acceptable frame type untagged
+pvid 3
+!
+interface gigabitethernet1/0/10
+!
+interface eth0
+ip address 192.168.10.2/24
+ip address default-gateway 192.168.10.1
+!
+profinet enable
+lldp enable
+
+mrp ring-id 1
+no ring enable
+ring uuid ffff:ffff:ffff:ffff:ffff:ffff:ffff:ffff
+ring port-1 1
+ring port-2 2
+ring vlan 1
+!
+model-name 852-0603
+

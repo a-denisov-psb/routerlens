@@ -4,10 +4,10 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
-const { detect, parseReport, networkOf } = require('../js/securepoint/parser.js');
-const { itemsToLines } = require('../js/securepoint/pdf-extract.js');
+const { detect, parseReport, networkOf } = require('../js/devices/securepoint/parser.js');
+const { itemsToLines } = require('../js/devices/securepoint/pdf-extract.js');
 
-// Pages of reference/securepoint_example_report.pdf (anonymized sample), as extracted by
+// Pages of reference/securepoint/example_report.pdf (anonymized sample), as extracted by
 // pdf-extract.js: pages -> lines -> [x, text] cells.
 const pages = JSON.parse(fs.readFileSync(path.join(__dirname, 'fixtures', 'securepoint-pages.json'), 'utf8'))
   .map((lines) => lines.map((cells) => cells.map(([x, text]) => ({ x, end: x, text }))));

@@ -1,11 +1,55 @@
 /*
- * App shell: view registry, icon navigation, file loading.
- * The config file is read with FileReader only – nothing leaves the browser.
+ * App shell: device registry, view registry, icon navigation, file loading.
+ *
+ * The core knows nothing about any particular router or switch. Every supported device type
+ * lives in its own module under js/devices/<id>/ and plugs in through two registries:
+ *
+ *   RouterLens.devices.register({...})  how to recognize and parse a file of that type
+ *   RouterLens.views.register({...})    navigation entries rendered for that type
+ *
+ * Files are read with FileReader only – nothing leaves the browser.
  */
 (function (root) {
   'use strict';
 
   const RouterLens = (root.RouterLens = root.RouterLens || {});
+
+  /* ---------- Device registry ---------- */
+
+  const devices = [];
+
+  RouterLens.devices = {
+    /**
+     * Registers a device type. Devices are tried in registration order; the first whose
+     * `open` returns data wins.
+     * @param {{
+     *   id: string,                 unique id, referenced by views (e.g. 'insys')
+     *   label: string,              human readable name (e.g. 'INSYS icom OS')
+     *   fileLabel: string,          what to drop, for the start page (e.g. 'an INSYS icom OS export (.txt)')
+     *   extensions: string[],       file name extensions this device may come as (e.g. ['.txt'])
+     *   binary?: boolean,           true: `open` receives an ArrayBuffer instead of text
+     *   open: function((string|ArrayBuffer), File): (Promise<*>|*),
+     *                               parsed data, or null when the content is not this device's format;
+     *                               throws an Error with a user-facing message for a broken file of its format
+     *   hostname?: function(*): ?string   name shown in the top bar
+     * }} device
+     */
+    register: function (device) {
+      if (!device || !device.id || typeof device.open !== 'function') {
+        throw new Error('RouterLens.devices.register: id and open() are required');
+      }
+      if (devices.some(function (d) { return d.id === device.id; })) {
+        throw new Error('RouterLens.devices.register: duplicate device id "' + device.id + '"');
+      }
+      devices.push(Object.assign({ extensions: [], binary: false }, device));
+    },
+    get: function (id) {
+      return devices.find(function (d) { return d.id === id; }) || null;
+    },
+    all: function () {
+      return devices.slice();
+    },
+  };
 
   /* ---------- View registry ---------- */
 
@@ -13,57 +57,39 @@
 
   RouterLens.views = {
     /**
-     * Registers a navigation entry. `device` selects the router type the entry belongs to
-     * ('insys' by default, 'securepoint'); `render` receives that device's parsed data and a
-     * context `{ sub }` with the optional second hash segment (#view/sub).
-     * @param {{id: string, label: string, icon: string, device?: string, render: function(*, {sub: ?string}): Node}} view
+     * Registers a navigation entry of one device type. `render` receives that device's parsed
+     * data and a context `{ sub }` with the optional second hash segment (#view/sub).
+     * @param {{id: string, label: string, icon: string, device: string, render: function(*, {sub: ?string}): Node}} view
      */
     register: function (view) {
-      views.push(Object.assign({ device: 'insys' }, view));
+      if (!view || !view.device) throw new Error('RouterLens.views.register: "device" is required (view "' + (view && view.id) + '")');
+      views.push(view);
     },
     all: function () {
       return views.slice();
     },
   };
 
-  /* ---------- Devices ---------- */
+  /* ---------- Shared helpers for device modules ---------- */
 
-  const PDFJS_DIR = 'js/vendor/pdfjs/';
+  const scripts = {};
 
-  /** Per router type: how to read the hostname shown in the top bar. */
-  const DEVICES = {
-    insys: {
-      label: 'INSYS icom OS',
-      hostname: function (config) { return config.get('administration.hostnames.hostname'); },
-    },
-    securepoint: {
-      label: 'Securepoint UTM',
-      hostname: function (report) { return report.system.hostname; },
-    },
+  /** Loads a script once (e.g. a large library only one device needs) and resolves when it ran. */
+  RouterLens.loadScript = function (src) {
+    if (!scripts[src]) {
+      scripts[src] = new Promise(function (resolve, reject) {
+        const el = document.createElement('script');
+        el.src = src;
+        el.onload = resolve;
+        el.onerror = function () { reject(new Error('Could not load ' + src)); };
+        document.head.appendChild(el);
+      });
+      scripts[src].catch(function () { delete scripts[src]; });
+    }
+    return scripts[src];
   };
 
-  function loadScript(src) {
-    return new Promise(function (resolve, reject) {
-      const el = document.createElement('script');
-      el.src = src;
-      el.onload = resolve;
-      el.onerror = function () { reject(new Error('Could not load ' + src)); };
-      document.head.appendChild(el);
-    });
-  }
-
-  let pdfjsReady = null;
-  /** pdf.js is large and only needed for Securepoint reports, so it is loaded on first use. */
-  function loadPdfjs() {
-    if (!pdfjsReady) {
-      pdfjsReady = loadScript(PDFJS_DIR + 'pdf.min.js').then(function () {
-        root.pdfjsLib.GlobalWorkerOptions.workerSrc = PDFJS_DIR + 'pdf.worker.min.js';
-        return root.pdfjsLib;
-      });
-      pdfjsReady.catch(function () { pdfjsReady = null; });
-    }
-    return pdfjsReady;
-  }
+  /* ---------- File loading ---------- */
 
   function readFile(file, asBuffer) {
     return new Promise(function (resolve, reject) {
@@ -75,37 +101,36 @@
     });
   }
 
-  /** Reads a file and returns { device, data } or throws an Error with a user-facing message. */
+  function extensionOf(name) {
+    const m = /(\.[^.]+)$/.exec(name);
+    return m ? m[1].toLowerCase() : '';
+  }
+
+  /**
+   * Hands the file to every device module that accepts its extension (all of them if none does)
+   * and returns { device, data } of the first one that recognizes it.
+   */
   async function openFile(file) {
-    if (/\.pdf$/i.test(file.name)) {
-      const buffer = await readFile(file, true);
-      const pdfjs = await loadPdfjs();
-      let pages;
-      try {
-        pages = await RouterLens.securepointPdf.extractPages(pdfjs, buffer);
-      } catch (err) {
-        throw new Error('Could not read "' + file.name + '" as a PDF: ' + err.message);
-      }
-      if (!RouterLens.securepoint.detect(pages)) {
-        throw new Error('"' + file.name + '" is not a Securepoint UTM report.');
-      }
-      return { device: 'securepoint', data: RouterLens.securepoint.parseReport(pages) };
+    const ext = extensionOf(file.name);
+    let candidates = devices.filter(function (d) { return d.extensions.indexOf(ext) !== -1; });
+    if (!candidates.length) candidates = devices;
+
+    const contents = {};
+    for (const device of candidates) {
+      const kind = device.binary ? 'buffer' : 'text';
+      if (!(kind in contents)) contents[kind] = await readFile(file, device.binary);
+      const data = await device.open(contents[kind], file);
+      if (data) return { device: device.id, data: data };
     }
-    let config;
-    try {
-      config = RouterLens.parser.parseConfig(await readFile(file, false));
-    } catch (err) {
-      throw new Error('Could not parse "' + file.name + '": ' + err.message);
-    }
-    if (!config.values.size) throw new Error('"' + file.name + '" contains no icom OS configuration entries.');
-    return { device: 'insys', data: config };
+    throw new Error('"' + file.name + '" is not a supported file. Supported: ' +
+      devices.map(function (d) { return d.label; }).join(', ') + '.');
   }
 
   /* ---------- State ---------- */
 
   const state = {
     device: null,
-    config: null, // parsed data of the loaded file (icom OS Config or Securepoint report)
+    config: null, // parsed data of the loaded file, as returned by the device module
     fileName: null,
     viewId: null,
   };
@@ -114,7 +139,7 @@
     return views.filter(function (v) { return v.device === state.device; });
   }
 
-  /* ---------- Bootstrapping (called after all view scripts loaded) ---------- */
+  /* ---------- Bootstrapping (called after all device and view scripts loaded) ---------- */
 
   RouterLens.start = function () {
     const ui = RouterLens.ui;
@@ -127,9 +152,15 @@
     const meta = document.getElementById('topbar-meta');
     const themeToggle = document.getElementById('theme-toggle');
 
+    const extensions = [];
+    devices.forEach(function (d) {
+      d.extensions.forEach(function (e) { if (extensions.indexOf(e) === -1) extensions.push(e); });
+    });
+    fileInput.setAttribute('accept', extensions.join(','));
+
     let navDevice = null;
 
-    /** The rail only lists the views of the loaded router type. */
+    /** The rail only lists the views of the loaded device type. */
     function buildNav() {
       if (navDevice === state.device) return;
       navDevice = state.device;
@@ -250,21 +281,23 @@
         return;
       }
 
+      const device = RouterLens.devices.get(state.device);
       const available = deviceViews();
       const view = available.find(function (v) { return v.id === state.viewId; }) || available[0];
       if (!view) {
         title.textContent = 'RouterLens';
-        main.appendChild(ui.emptyNote('No views are available for this router type yet.'));
+        main.appendChild(ui.emptyNote('No views are available for ' + device.label + ' yet.'));
         return;
       }
-      const hostname = DEVICES[state.device].hostname(state.config);
+      const hostname = device.hostname ? device.hostname(state.config) : null;
+      const warnings = state.config.warnings || [];
       title.textContent = view.label;
       meta.replaceChildren.apply(meta, [
         hostname ? h('span', { class: 'meta-host' }, hostname) : null,
-        h('span', { class: 'meta-file', title: state.fileName }, state.fileName),
-        state.config.warnings && state.config.warnings.length
-          ? h('span', { class: 'meta-warn', title: state.config.warnings.map(function (w) { return 'Line ' + w.line + ': ' + w.message + ' (' + w.text + ')'; }).join('\n') },
-            state.config.warnings.length + ' parser warning' + (state.config.warnings.length > 1 ? 's' : ''))
+        h('span', { class: 'meta-file', title: device.label + ' · ' + state.fileName }, state.fileName),
+        warnings.length
+          ? h('span', { class: 'meta-warn', title: warnings.map(function (w) { return 'Line ' + w.line + ': ' + w.message + ' (' + w.text + ')'; }).join('\n') },
+            warnings.length + ' parser warning' + (warnings.length > 1 ? 's' : ''))
           : null,
       ].filter(Boolean));
 
@@ -272,13 +305,18 @@
       document.title = (hostname ? hostname + ' · ' : '') + view.label + ' · RouterLens';
     }
 
+    function fileList() {
+      const labels = devices.map(function (d) { return d.fileLabel || d.label; });
+      if (labels.length < 2) return labels.join('');
+      return labels.slice(0, -1).join(', ') + ' or ' + labels[labels.length - 1];
+    }
+
     function emptyState() {
       return h('div', { class: 'empty-state' },
         h('div', { class: 'dropzone' },
           h('div', { class: 'dropzone-icon', html: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5"/><path d="M12 18v-6"/><path d="m9 15 3-3 3 3"/></svg>' }),
-          h('h1', null, 'Open a router config export'),
-          h('p', null, 'Drop an INSYS icom OS export (', h('code', null, '.txt'), ') or a Securepoint UTM report (',
-            h('code', null, '.pdf'), ') here or choose it from disk.'),
+          h('h1', null, 'Open a device config export'),
+          h('p', null, 'Drop ' + fileList() + ' here or choose it from disk.'),
           h('button', { class: 'btn btn-primary', type: 'button', onclick: function () { fileInput.click(); } }, 'Choose file'),
           h('p', { class: 'privacy' }, 'The file is parsed locally in your browser and is never uploaded.')));
     }
