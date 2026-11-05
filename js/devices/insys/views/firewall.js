@@ -397,5 +397,5 @@
       destinationNatCard(config, netsByName));
   }
 
-  RouterLens.views.register({ id: 'firewall', label: 'Firewall', icon: ICON, render: render });
+  RouterLens.views.register({ id: 'firewall', label: 'Firewall', icon: ICON, device: 'insys', render: render });
 })(window);

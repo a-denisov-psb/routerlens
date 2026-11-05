@@ -4,9 +4,9 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
-const { parseConfig } = require('../js/parser.js');
+const { parseConfig } = require('../js/devices/insys/parser.js');
 
-const example = fs.readFileSync(path.join(__dirname, '..', 'reference', 'example_config.txt'), 'utf8');
+const example = fs.readFileSync(path.join(__dirname, '..', 'reference', 'insys', 'example_config.txt'), 'utf8');
 
 test('parses simple key=value pairs', () => {
   const cfg = parseConfig('a.b.c=1\na.b.d=hello world\n');

@@ -161,5 +161,5 @@
         'OpenVPN server routes (push)', 'Routes advertised to the OpenVPN clients', false));
   }
 
-  RouterLens.views.register({ id: 'routing', label: 'Routing', icon: ICON, render: render });
+  RouterLens.views.register({ id: 'routing', label: 'Routing', icon: ICON, device: 'insys', render: render });
 })(window);

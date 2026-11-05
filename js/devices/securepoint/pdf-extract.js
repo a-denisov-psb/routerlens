@@ -5,7 +5,7 @@
  * { x, end, text } sorted left to right, so the table parser can assign cells to
  * columns by their x position (empty cells are not representable in plain text).
  *
- * Needs pdf.js (global `pdfjsLib`, vendored in js/vendor/pdfjs). Everything runs locally.
+ * Needs pdf.js (global `pdfjsLib`, vendored in js/lib/pdfjs). Everything runs locally.
  *
  * Runs in the browser (global `RouterLens.securepointPdf`) and in Node (module.exports).
  */

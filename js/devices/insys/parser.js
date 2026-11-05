@@ -12,7 +12,7 @@
  * Lines ending in ".delete=all" / ".add=N" are import directives for the router,
  * not configuration values. They are collected separately.
  *
- * Runs in the browser (global `RouterLens.parser`) and in Node (module.exports) for tests.
+ * Runs in the browser (global `RouterLens.insys`) and in Node (module.exports) for tests.
  */
 (function (root) {
   'use strict';
@@ -214,6 +214,6 @@
     module.exports = api;
   } else {
     root.RouterLens = root.RouterLens || {};
-    root.RouterLens.parser = api;
+    root.RouterLens.insys = api;
   }
 })(typeof window !== 'undefined' ? window : globalThis);
