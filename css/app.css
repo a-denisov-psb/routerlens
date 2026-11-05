@@ -230,6 +230,25 @@ code, pre { font-family: var(--mono); font-size: 13px; }
 .meta-host + .meta-file::before { content: "·"; margin-right: 10px; color: var(--muted); }
 .meta-warn { color: var(--warn); cursor: help; }
 
+.type-select { flex: 0 0 auto; display: flex; align-items: center; gap: 8px; color: var(--text-2); font-size: 13px; }
+
+.type-select select {
+  height: 34px;
+  max-width: 220px;
+  padding: 0 10px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface);
+  color: var(--text);
+  font: inherit;
+  cursor: pointer;
+}
+
+.type-select select:hover { background: var(--surface-2); }
+
+/* An explicitly chosen type overrides auto-detection: make that visible. */
+.type-select select.is-forced { border-color: var(--primary); color: var(--primary); font-weight: 600; }
+
 .topbar-icon-btn {
   flex: 0 0 auto;
   width: 40px;
@@ -333,6 +352,8 @@ body.dragging .drop-overlay { display: grid; }
   .grid { grid-template-columns: minmax(0, 1fr); }
   .main { padding: 16px; }
   .topbar { padding: 8px 16px; }
+  .type-select-label { display: none; }
+  .type-select select { max-width: 150px; }
   .detail-grid { grid-template-columns: minmax(0, 1fr); }
 }
 

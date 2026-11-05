@@ -107,13 +107,22 @@
   }
 
   /**
-   * Hands the file to every device module that accepts its extension (all of them if none does)
-   * and returns { device, data } of the first one that recognizes it.
+   * Returns { device, data } for the file.
+   * With a `deviceId` only that device module is asked (the user picked the type explicitly).
+   * Without one ("Auto-detect") the file goes to every device module that accepts its extension
+   * (all of them if none does) and the first one that recognizes it wins.
    */
-  async function openFile(file) {
-    const ext = extensionOf(file.name);
-    let candidates = devices.filter(function (d) { return d.extensions.indexOf(ext) !== -1; });
-    if (!candidates.length) candidates = devices;
+  async function openFile(file, deviceId) {
+    let candidates;
+    if (deviceId) {
+      const forced = RouterLens.devices.get(deviceId);
+      if (!forced) throw new Error('Unknown file type "' + deviceId + '".');
+      candidates = [forced];
+    } else {
+      const ext = extensionOf(file.name);
+      candidates = devices.filter(function (d) { return d.extensions.indexOf(ext) !== -1; });
+      if (!candidates.length) candidates = devices;
+    }
 
     const contents = {};
     for (const device of candidates) {
@@ -121,6 +130,10 @@
       if (!(kind in contents)) contents[kind] = await readFile(file, device.binary);
       const data = await device.open(contents[kind], file);
       if (data) return { device: device.id, data: data };
+    }
+    if (deviceId) {
+      throw new Error('"' + file.name + '" is not ' + (candidates[0].fileLabel || 'a ' + candidates[0].label + ' file') +
+        '. Choose another file type or "Auto-detect".');
     }
     throw new Error('"' + file.name + '" is not a supported file. Supported: ' +
       devices.map(function (d) { return d.label; }).join(', ') + '.');
@@ -132,6 +145,7 @@
     device: null,
     config: null, // parsed data of the loaded file, as returned by the device module
     fileName: null,
+    file: null, // last opened File, re-read when the user switches the file type
     viewId: null,
   };
 
@@ -151,12 +165,10 @@
     const title = document.getElementById('topbar-title');
     const meta = document.getElementById('topbar-meta');
     const themeToggle = document.getElementById('theme-toggle');
+    const typeSelect = document.getElementById('device-type');
+    const dropHint = document.getElementById('drop-hint');
 
-    const extensions = [];
-    devices.forEach(function (d) {
-      d.extensions.forEach(function (e) { if (extensions.indexOf(e) === -1) extensions.push(e); });
-    });
-    fileInput.setAttribute('accept', extensions.join(','));
+    setupTypeSelect();
 
     let navDevice = null;
 
@@ -218,6 +230,43 @@
       if (file) loadFile(file);
     });
 
+    /* ----- File type: "Auto-detect" or one explicitly chosen device module ----- */
+
+    const TYPE_KEY = 'routerlens-device-type';
+
+    function setupTypeSelect() {
+      typeSelect.replaceChildren(h('option', { value: '' }, 'Auto-detect'));
+      devices.forEach(function (d) { typeSelect.appendChild(h('option', { value: d.id }, d.label)); });
+      let stored = '';
+      try { stored = localStorage.getItem(TYPE_KEY) || ''; } catch (e) { /* localStorage unavailable */ }
+      typeSelect.value = RouterLens.devices.get(stored) ? stored : '';
+      typeSelect.addEventListener('change', function () {
+        try { localStorage.setItem(TYPE_KEY, typeSelect.value); } catch (e) { /* localStorage unavailable */ }
+        syncFileType();
+        // Re-read the current file with the newly chosen parser, or refresh the start page text.
+        if (state.file) loadFile(state.file);
+        else render();
+      });
+      syncFileType();
+    }
+
+    /** The explicitly chosen device module, or null for "Auto-detect". */
+    function selectedDevice() {
+      return RouterLens.devices.get(typeSelect.value);
+    }
+
+    /** Narrows the file dialog filter and the drop hint to the chosen type. */
+    function syncFileType() {
+      const device = selectedDevice();
+      const extensions = [];
+      (device ? [device] : devices).forEach(function (d) {
+        d.extensions.forEach(function (e) { if (extensions.indexOf(e) === -1) extensions.push(e); });
+      });
+      fileInput.setAttribute('accept', extensions.join(','));
+      typeSelect.classList.toggle('is-forced', !!device);
+      dropHint.textContent = device ? 'Drop file to open as ' + device.label : 'Drop config file or report to open';
+    }
+
     function isDarkActive() {
       const theme = document.documentElement.dataset.theme;
       return theme === 'dark' || (!theme && root.matchMedia('(prefers-color-scheme: dark)').matches);
@@ -247,13 +296,17 @@
     }
 
     function loadFile(file) {
-      openFile(file).then(function (result) {
+      state.file = file;
+      const forced = selectedDevice();
+      openFile(file, forced ? forced.id : null).then(function (result) {
+        if (state.file !== file) return; // a newer file was opened meanwhile
         state.device = result.device;
         state.config = result.data;
         state.fileName = file.name;
         state.viewId = viewFromHash() || (deviceViews()[0] && deviceViews()[0].id);
         render();
       }).catch(function (err) {
+        if (state.file !== file) return;
         state.config = null;
         state.device = null;
         showError(err.message);
@@ -306,7 +359,8 @@
     }
 
     function fileList() {
-      const labels = devices.map(function (d) { return d.fileLabel || d.label; });
+      const forced = selectedDevice();
+      const labels = (forced ? [forced] : devices).map(function (d) { return d.fileLabel || d.label; });
       if (labels.length < 2) return labels.join('');
       return labels.slice(0, -1).join(', ') + ' or ' + labels[labels.length - 1];
     }
